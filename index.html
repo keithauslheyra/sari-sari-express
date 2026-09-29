@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sari-Sari Store & Grocery Management System</title>
+    
+    <!-- FIREBASE SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #ec4899;
+            --primary-hover: #db2777;
+            --secondary: #10b981;
+            --secondary-hover: #059669;
+            --bg-main: #fcf8fa;
+            --bg-card: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border: #f3e8ff;
+            --accent-pink: #fbcfe8;
+            --accent-mint: #a7f3d0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .hidden { display: none !important; }
+
+        /* --- AUTH SECTION --- */
+        #auth-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, var(--accent-pink), var(--accent-mint));
+        }
+
+        .auth-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-card h2 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+            width: auto;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-secondary:hover { background: var(--secondary-hover); }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+
+        /* --- APP LAYOUT --- */
+        #app-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        aside {
+            width: 260px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand {
+            padding: 1.5rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .nav-list {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            padding: 0.9rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: #fdf2f8;
+            color: var(--primary);
+            border-left: 4px solid var(--primary);
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        /* --- COMPONENTS --- */
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--secondary);
+        }
+
+        .card h3 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .card p {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #f3e8ff;
+            padding: 1rem;
+        }
+
+        .product-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .product-title { 
+            font-weight: bold; 
+            font-size: 1.05rem; 
+            color: var(--text-main);
+        }
+
+        .product-price { 
+            color: var(--primary); 
+            font-weight: bold; 
+            font-size: 1.1rem; 
+            margin-bottom: 0.25rem;
+        }
+
+        .product-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            flex: 1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+
+        th { background-color: #f9fafb; font-size: 0.85rem; color: var(--text-muted); }
+
+        .badge {
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-pending { background: #fef3c7; color: #d97706; }
+        .badge-confirmed { background: #dbeafe; color: #2563eb; }
+        .badge-preparing { background: #e0e7ff; color: #4338ca; }
+        .badge-out_for_delivery { background: #fce7f3; color: #be185d; }
+        .badge-delivered { background: #d1fae5; color: #059669; }
+        .badge-cancelled { background: #fee2e2; color: #dc2626; }
+
+        .profile-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            max-width: 500px;
+        }
+
+        .profile-row {
+            display: flex;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            padding-bottom: 0.75rem;
+        }
+
+        .profile-label {
+            width: 150px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .profile-value {
+            flex: 1;
+            color: var(--text-main);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 650px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            #app-container { flex-direction: column; }
+            aside { width: 100%; height: auto; }
+            .nav-list { display: flex; overflow-x: auto; }
+            .nav-item { white-space: nowrap; }
+            .profile-row { flex-direction: column; }
+            .profile-label { width: 100%; margin-bottom: 0.25rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- AUTHENTICATION CONTAINER -->
+    <div id="auth-container">
+        <div class="auth-card">
+            <h2 id="auth-title">System Login</h2>
+            
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="login-role">
+                        <option value="sari_sari">Sari-Sari Store Owner</option>
+                        <option value="grocery">Grocery Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Store ID / Username</label>
+                    <input type="text" id="login-username" required placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter password">
+                </div>
+                <button type="submit" class="btn btn-primary">Sign In</button>
+                <div style="text-align: center; margin-top: 1rem;">
+                    <a href="#" onclick="toggleAuthMode('register'); return false;" style="color: var(--primary); font-size: 0.9rem; text-decoration: none;">Create / Set Password</a>
+                </div>
+            </form>
+
+            <form id="register-form" class="hidden">
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="reg-role">
+                        <option value="sari_sari">Sari-Sari Store Owner</option>
+                        <option value="grocery">Grocery Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Store ID / Username</label>
+                    <input type="text" id="reg-username" required placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Create Password</label>
+                    <input type="password" id="reg-password" required placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="reg-confirm-password" required placeholder="Confirm new password">
+                </div>
+                <button type="submit" class="btn btn-primary">Save & Set Password</button>
+                <div style="text-align: center; margin-top: 1rem;">
+                    <a href="#" onclick="toggleAuthMode('login'); return false;" style="color: var(--primary); font-size: 0.9rem; text-decoration: none;">Back to Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="hidden">
+        <aside>
+            <div class="brand" id="brand-title">SupplyChain Portal</div>
+            <ul class="nav-list" id="nav-items"></ul>
+        </aside>
+        
+        <main>
+            <header>
+                <div id="user-display">Role: Guest</div>
+                <button class="btn btn-secondary" onclick="logout()" style="width: auto; padding: 0.4rem 1rem;">Logout</button>
+            </header>
+
+            <div class="content-area" id="main-content"></div>
+        </main>
+    </div>
+
+    <!-- ORDER DETAILS MODAL -->
+    <div id="order-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-order-id">Order Details</h3>
+                <button class="close-btn" onclick="closeOrderModal()">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- ADD PRODUCT MODAL -->
+    <div id="add-product-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Product</h3>
+                <button class="close-btn" onclick="closeAddProductModal()">&times;</button>
+            </div>
+            <form id="add-product-form" onsubmit="saveNewProduct(event)">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="new-prod-name" required placeholder="e.g. Canned Tuna">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="new-prod-category">
+                        <option value="Rice & Grains">Rice & Grains</option>
+                        <option value="Cooking Essentials">Cooking Essentials</option>
+                        <option value="Canned Foods">Canned Foods</option>
+                        <option value="Instant Foods">Instant Foods</option>
+                        <option value="DRINKS">DRINKS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Price (₱)</label>
+                    <input type="number" step="0.01" id="new-prod-price" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" id="new-prod-stock" required placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>Size / Unit</label>
+                    <input type="text" id="new-prod-size" placeholder="e.g. 1kg, 1L, 155g">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="new-prod-desc" rows="2" placeholder="Product details..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Product</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAMyQuxekvR4ADrgFtqztjiZjf5LrKE3JQ",
+            authDomain: "sarisari-supply-system.firebaseapp.com",
+            databaseURL: "https://sarisari-supply-system-default-rtdb.firebaseio.com",
+            projectId: "sarisari-supply-system",
+            storageBucket: "sarisari-supply-system.firebasestorage.app",
+            messagingSenderId: "719879337932",
+            appId: "1:719879337932:web:871037869f042ba0b58f69",
+            measurementId: "G-LTFXM1XFP2"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Initial default items (gagamitin lang kapag walang laman ang Firebase)
+        const initialWholesaleProducts = [
+            { id: 101, name: "Rice 5kg", category: "Rice & Grains", price: 285.00, stock: 20, size: "5kg", description: "Premium quality white rice" },
+            { id: 102, name: "Sugar 1kg", category: "Cooking Essentials", price: 75.00, stock: 30, size: "1kg", description: "Refined white sugar" },
+            { id: 103, name: "Cooking Oil 1L", category: "Cooking Essentials", price: 95.00, stock: 25, size: "1L", description: "Pure vegetable cooking oil" },
+            { id: 104, name: "Soy Sauce 1L", category: "Cooking Essentials", price: 65.00, stock: 20, size: "1L", description: "Traditional brewed soy sauce" },
+            { id: 105, name: "Vinegar 1L", category: "Cooking Essentials", price: 55.00, stock: 20, size: "1L", description: "Distilled cane vinegar" },
+            { id: 106, name: "Sardines 155g", category: "Canned Foods", price: 28.00, stock: 40, size: "155g", description: "Sardines in rich tomato sauce" },
+            { id: 107, name: "Corned Beef 175g", category: "Canned Foods", price: 45.00, stock: 35, size: "175g", description: "Savory canned corned beef" },
+            { id: 108, name: "Tuna 155g", category: "Canned Foods", price: 38.00, stock: 30, size: "155g", description: "Canned tuna flakes in oil" },
+            { id: 109, name: "Instant Noodles", category: "Instant Foods", price: 12.00, stock: 50, size: "55g", description: "Quick-cook flavor noodles" },
+            { id: 301, name: "Coca-Cola", category: "DRINKS", subcategory: "SOFT DRINKS", price: 38.00, stock: 50, size: "1.5L", description: "Classic refreshing cola drink" }
+        ];
+
+        // Central State
+        let DB = {
+            accounts: {},
+            stores: {},
+            groceryInventory: [],
+            cart: [],
+            orders: []
+        };
+
+        let currentUser = null;
+
+        // REAL-TIME LISTENERS
+        db.ref('accounts').on('value', (snapshot) => {
+            DB.accounts = snapshot.val() || {};
+        });
+
+        db.ref('stores').on('value', (snapshot) => {
+            DB.stores = snapshot.val() || {};
+            if (currentUser && currentUser.role === 'sari_sari') {
+                setupNavigation();
+            }
+        });
+
+        // Sync Products Real-Time
+        db.ref('groceryInventory').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                // Initialize default products in Firebase if empty
+                initialWholesaleProducts.forEach(item => {
+                    db.ref('groceryInventory/' + item.id).set(item);
+                });
+            } else {
+                DB.groceryInventory = Object.keys(data).map(k => data[k]);
+                const currentTab = document.querySelector('.nav-item.active');
+                if (currentTab && currentTab.innerText.includes("Browse")) {
+                    renderWholesaleProducts();
+                }
+            }
+        });
+
+        db.ref('orders').on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+            DB.orders = Object.keys(data).map(key => data[key]).reverse();
+            if (currentUser) {
+                const currentTab = document.querySelector('.nav-item.active');
+                if (currentTab && currentTab.innerText.includes("Orders")) {
+                    if (currentUser.role === 'grocery') loadGroceryOrders();
+                    else loadSariOrders();
+                }
+            }
+        });
+
+        function toggleAuthMode(mode) {
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            const authTitle = document.getElementById('auth-title');
+
+            if (mode === 'register') {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                authTitle.innerText = "Set Up Password";
+            } else {
+                regForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                authTitle.innerText = "System Login";
+            }
+        }
+
+        // REGISTER/REGISTER TO FIREBASE
+        document.getElementById('register-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const roleSelect = document.getElementById('reg-role');
+            const role = roleSelect.options[roleSelect.selectedIndex].value;
+            const username = document.getElementById('reg-username').value.trim().toLowerCase();
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+            if (!username) { alert("Please enter a valid username!"); return; }
+            if (password !== confirmPassword) { alert("Passwords do not match!"); return; }
+
+            const accountKey = `${role}_${username}`;
+            db.ref('accounts/' + accountKey).set({ role, username, password }).then(() => {
+                if (role === 'sari_sari' && !DB.stores[username]) {
+                    db.ref('stores/' + username).set({
+                        id: username,
+                        storeName: username.toUpperCase() + " Store",
+                        ownerName: "Store Owner",
+                        deliveryAddress: "Address Not Set",
+                        contactNumber: "0900-000-0000"
+                    });
+                }
+                alert(`Password saved successfully for ${role === 'grocery' ? 'Grocery Admin' : 'Sari-Sari Store'} (${username})! You can now sign in.`);
+                document.getElementById('register-form').reset();
+                toggleAuthMode('login');
+            }).catch(err => {
+                alert("Error saving account: " + err.message);
+            });
+        });
+
+        // LOGIN SYSTEM
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const roleSelect = document.getElementById('login-role');
+            const role = roleSelect.options[roleSelect.selectedIndex].value;
+            const username = document.getElementById('login-username').value.trim().toLowerCase();
+            const password = document.getElementById('login-password').value;
+            
+            const accountKey = `${role}_${username}`;
+            const account = DB.accounts[accountKey];
+
+            if (!account) {
+                const confirmCreate = confirm(`Account "${username}" for ${role === 'grocery' ? 'Grocery Admin' : 'Sari-Sari Store'} was not found in database.\n\nWould you like to set up this account now with the entered password?`);
+                if (confirmCreate) {
+                    db.ref('accounts/' + accountKey).set({ role, username, password }).then(() => {
+                        if (role === 'sari_sari' && !DB.stores[username]) {
+                            db.ref('stores/' + username).set({
+                                id: username,
+                                storeName: username.toUpperCase() + " Store",
+                                ownerName: "Store Owner",
+                                deliveryAddress: "Address Not Set",
+                                contactNumber: "0900-000-0000"
+                            });
+                        }
+                        alert("Account created successfully! Logging you in...");
+                        currentUser = { username, role };
+                        document.getElementById('auth-container').classList.add('hidden');
+                        document.getElementById('app-container').classList.remove('hidden');
+                        setupNavigation();
+                        loadDashboard();
+                    });
+                }
+                return;
+            }
+
+            if (account.password !== password) {
+                alert("Incorrect Password!");
+                return;
+            }
+
+            currentUser = { username, role };
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            
+            setupNavigation();
+            loadDashboard();
+        });
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('auth-container').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            toggleAuthMode('login');
+        }
+
+        function setupNavigation() {
+            const nav = document.getElementById('nav-items');
+            const brand = document.getElementById('brand-title');
+            const userDisplay = document.getElementById('user-display');
+            nav.innerHTML = '';
+
+            if(currentUser.role === 'sari_sari') {
+                const store = DB.stores[currentUser.username] || {};
+                brand.innerText = "Store Hub";
+                userDisplay.innerText = `Sari-Sari Store: ${store.storeName || currentUser.username}`;
+                
+                const links = [
+                    { label: "Dashboard", action: loadDashboard },
+                    { label: "Edit Store Profile", action: loadStoreProfile },
+                    { label: "Browse Grocery", action: loadBrowseGrocery },
+                    { label: "Shopping Cart", action: loadCart },
+                    { label: "My Orders", action: loadSariOrders },
+                    { label: "Order History", action: loadOrderHistory },
+                    { label: "Change Password", action: loadChangePassword }
+                ];
+                
+                links.forEach((link, idx) => {
+                    const li = document.createElement('li');
+                    li.className = `nav-item ${idx === 0 ? 'active' : ''}`;
+                    li.innerText = link.label;
+                    li.onclick = () => {
+                        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+                        li.classList.add('active');
+                        link.action();
+                    };
+                    nav.appendChild(li);
+                });
+            } else {
+                brand.innerText = "Grocery Admin";
+                userDisplay.innerText = `Admin: ${currentUser.username}`;
+                
+                const links = [
+                    { label: "Dashboard", action: loadDashboard },
+                    { label: "Browse Products", action: loadBrowseGrocery },
+                    { label: "Order Requests", action: loadGroceryOrders },
+                    { label: "Order History", action: loadOrderHistory },
+                    { label: "Change Password", action: loadChangePassword }
+                ];
+                
+                links.forEach((link, idx) => {
+                    const li = document.createElement('li');
+                    li.className = `nav-item ${idx === 0 ? 'active' : ''}`;
+                    li.innerText = link.label;
+                    li.onclick = () => {
+                        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+                        li.classList.add('active');
+                        link.action();
+                    };
+                    nav.appendChild(li);
+                });
+            }
+        }
+
+        function loadStoreProfile() {
+            const container = document.getElementById('main-content');
+            const store = DB.stores[currentUser.username] || {};
+
+            container.innerHTML = `
+                <h2>My Store Profile</h2><br>
+                <div class="profile-card">
+                    <div id="profile-view">
+                        <div class="profile-row">
+                            <div class="profile-label">Store Name:</div>
+                            <div class="profile-value"><strong>${store.storeName || ''}</strong></div>
+                        </div>
+                        <div class="profile-row">
+                            <div class="profile-label">Owner Name:</div>
+                            <div class="profile-value">${store.ownerName || ''}</div>
+                        </div>
+                        <div class="profile-row">
+                            <div class="profile-label">Delivery Address:</div>
+                            <div class="profile-value">${store.deliveryAddress || ''}</div>
+                        </div>
+                        <div class="profile-row">
+                            <div class="profile-label">Contact Number:</div>
+                            <div class="profile-value">${store.contactNumber || ''}</div>
+                        </div>
+                        <br>
+                        <button class="btn btn-primary" onclick="toggleEditProfile(true)">Edit Store Information</button>
+                    </div>
+
+                    <form id="profile-edit-form" class="hidden" onsubmit="saveStoreProfile(event)">
+                        <div class="form-group">
+                            <label>Store Name</label>
+                            <input type="text" id="edit-store-name" value="${store.storeName || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Owner Name</label>
+                            <input type="text" id="edit-owner-name" value="${store.ownerName || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Delivery Address</label>
+                            <textarea id="edit-delivery-address" rows="3" required>${store.deliveryAddress || ''}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Contact Number</label>
+                            <input type="text" id="edit-contact-number" value="${store.contactNumber || ''}" required>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                            <button type="submit" class="btn btn-secondary">Save Changes</button>
+                            <button type="button" class="btn btn-danger" onclick="toggleEditProfile(false)">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        }
+
+        function toggleEditProfile(isEditing) {
+            document.getElementById('profile-view').classList.toggle('hidden', isEditing);
+            document.getElementById('profile-edit-form').classList.toggle('hidden', !isEditing);
+        }
+
+        function saveStoreProfile(e) {
+            e.preventDefault();
+            const storeData = {
+                id: currentUser.username,
+                storeName: document.getElementById('edit-store-name').value.trim(),
+                ownerName: document.getElementById('edit-owner-name').value.trim(),
+                deliveryAddress: document.getElementById('edit-delivery-address').value.trim(),
+                contactNumber: document.getElementById('edit-contact-number').value.trim()
+            };
+
+            db.ref('stores/' + currentUser.username).set(storeData);
+            alert("Profile Updated Successfully!");
+            setupNavigation();
+            loadStoreProfile();
+        }
+
+        function loadDashboard() {
+            const container = document.getElementById('main-content');
+            if (currentUser.role === 'sari_sari') {
+                const storeOrders = DB.orders.filter(o => o.storeId === currentUser.username);
+                const activeOrders = storeOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
+                const totalSpent = storeOrders.reduce((sum, o) => sum + (o.status !== 'Cancelled' ? o.total : 0), 0);
+
+                container.innerHTML = `
+                    <h2>Sari-Sari Store Overview</h2><br>
+                    <div class="grid-cards">
+                        <div class="card">
+                            <h3>Active Restock Orders</h3>
+                            <p>${activeOrders}</p>
+                        </div>
+                        <div class="card">
+                            <h3>Total Purchase Expenses</h3>
+                            <p>₱${totalSpent.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const pendingCount = DB.orders.filter(o => o.status === 'Pending').length;
+                const totalSales = DB.orders.reduce((sum, o) => sum + (o.status !== 'Cancelled' ? o.total : 0), 0);
+
+                container.innerHTML = `
+                    <h2>Grocery Management Dashboard</h2><br>
+                    <div class="grid-cards">
+                        <div class="card">
+                            <h3>Pending Requests</h3>
+                            <p>${pendingCount}</p>
+                        </div>
+                        <div class="card">
+                            <h3>Total Grocery Sales</h3>
+                            <p>₱${totalSales.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        let currentCategoryFilter = 'All Products';
+
+        function loadBrowseGrocery() {
+            const container = document.getElementById('main-content');
+            const mainCategories = ["All Products", "DRINKS", "Rice & Grains", "Cooking Essentials", "Canned Foods", "Instant Foods"];
+
+            const isGroceryAdmin = currentUser && currentUser.role === 'grocery';
+
+            container.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Browse Wholesale Products</h2>
+                    ${isGroceryAdmin ? `<button class="btn btn-secondary btn-sm" onclick="openAddProductModal()">+ Add New Product</button>` : ''}
+                </div>
+                <div style="display: flex; gap: 0.5rem; overflow-x: auto; margin-bottom: 1rem;">
+                    ${mainCategories.map(cat => `
+                        <button class="btn btn-sm" style="background: ${currentCategoryFilter === cat ? 'var(--primary)' : 'white'}; color: ${currentCategoryFilter === cat ? 'white' : 'black'}; border: 1px solid #ccc;" onclick="filterGroceryCategory('${cat}')">${cat}</button>
+                    `).join('')}
+                </div>
+                <div id="wholesale-products-grid" class="product-grid"></div>
+            `;
+            renderWholesaleProducts();
+        }
+
+        function filterGroceryCategory(cat) {
+            currentCategoryFilter = cat;
+            loadBrowseGrocery();
+        }
+
+        function renderWholesaleProducts() {
+            const grid = document.getElementById('wholesale-products-grid');
+            if (!grid) return;
+
+            let filtered = DB.groceryInventory.filter(p => currentCategoryFilter === 'All Products' || p.category === currentCategoryFilter);
+
+            grid.innerHTML = filtered.map(item => `
+                <div class="product-card">
+                    <div class="product-info">
+                        <div class="product-title">${item.name}</div>
+                        <div class="product-price">₱${Number(item.price).toFixed(2)}</div>
+                        <div class="product-desc">${item.description || ''}</div>
+                        
+                        ${currentUser && currentUser.role === 'sari_sari' ? 
+                            `<button class="btn btn-primary" onclick="addToCart(${item.id})">Add to Cart</button>` : 
+                            `
+                            <div style="margin-top:auto;">
+                                <p style="font-size:0.85rem; color:var(--text-muted); font-weight: bold; margin-bottom: 0.5rem;">Stock: ${item.stock} pcs</p>
+                                <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="editProduct(${item.id})">Edit Price & Stock</button>
+                            </div>
+                            `
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // EDIT PRODUCT PRICE AND STOCK
+        function editProduct(id) {
+            const product = DB.groceryInventory.find(p => p.id === id);
+            if (!product) return;
+
+            const newPrice = prompt(`Enter new price for "${product.name}":`, product.price);
+            if (newPrice === null) return;
+
+            const newStock = prompt(`Enter new stock quantity for "${product.name}":`, product.stock);
+            if (newStock === null) return;
+
+            const updatedPrice = parseFloat(newPrice);
+            const updatedStock = parseInt(newStock);
+
+            if (isNaN(updatedPrice) || updatedPrice < 0) {
+                alert("Invalid Price!");
+                return;
+            }
+            if (isNaN(updatedStock) || updatedStock < 0) {
+                alert("Invalid Stock!");
+                return;
+            }
+
+            db.ref('groceryInventory/' + id).update({
+                price: updatedPrice,
+                stock: updatedStock
+            }).then(() => {
+                alert("Product updated successfully!");
+            }).catch(err => alert("Error updating: " + err.message));
+        }
+
+        // ADD NEW PRODUCT MODAL CONTROLS
+        function openAddProductModal() {
+            document.getElementById('add-product-modal').classList.remove('hidden');
+        }
+
+        function closeAddProductModal() {
+            document.getElementById('add-product-modal').classList.add('hidden');
+            document.getElementById('add-product-form').reset();
+        }
+
+        function saveNewProduct(e) {
+            e.preventDefault();
+            const newId = Date.now();
+            const name = document.getElementById('new-prod-name').value.trim();
+            const category = document.getElementById('new-prod-category').value;
+            const price = parseFloat(document.getElementById('new-prod-price').value);
+            const stock = parseInt(document.getElementById('new-prod-stock').value);
+            const size = document.getElementById('new-prod-size').value.trim();
+            const description = document.getElementById('new-prod-desc').value.trim();
+
+            const newProduct = {
+                id: newId,
+                name,
+                category,
+                price,
+                stock,
+                size,
+                description
+            };
+
+            db.ref('groceryInventory/' + newId).set(newProduct).then(() => {
+                alert("New Product Added Successfully!");
+                closeAddProductModal();
+            }).catch(err => alert("Error adding product: " + err.message));
+        }
+
+        function addToCart(id) {
+            const item = DB.groceryInventory.find(p => p.id === id);
+            const cartItem = DB.cart.find(c => c.id === id);
+
+            if (cartItem) cartItem.qty++;
+            else DB.cart.push({ ...item, qty: 1 });
+
+            alert(`${item.name} added to cart!`);
+        }
+
+        function loadCart() {
+            const container = document.getElementById('main-content');
+            if (DB.cart.length === 0) {
+                container.innerHTML = `<h2>Cart is Empty</h2>`;
+                return;
+            }
+
+            let total = DB.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+            container.innerHTML = `
+                <h2>Shopping Cart</h2><br>
+                <table>
+                    <thead>
+                        <tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr>
+                    </thead>
+                    <tbody>
+                        ${DB.cart.map(item => `
+                            <tr>
+                                <td>${item.name}</td>
+                                <td>₱${Number(item.price).toFixed(2)}</td>
+                                <td>${item.qty}</td>
+                                <td>₱${(item.price * item.qty).toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <br>
+                <h3>Total: ₱${total.toFixed(2)}</h3><br>
+                <button class="btn btn-primary" onclick="checkoutOrder()">Submit Order</button>
+            `;
+        }
+
+        function checkoutOrder() {
+            const store = DB.stores[currentUser.username] || {};
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const newOrder = {
+                id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
+                storeId: currentUser.username,
+                storeName: store.storeName || currentUser.username,
+                ownerName: store.ownerName || '',
+                contactNumber: store.contactNumber || '',
+                address: store.deliveryAddress || '',
+                items: [...DB.cart],
+                total: DB.cart.reduce((sum, i) => sum + (i.price * i.qty), 0),
+                status: 'Pending',
+                orderDate: now.toISOString().split('T')[0],
+                orderTime: timeStr,
+                timeline: { Pending: timeStr }
+            };
+
+            db.ref('orders/' + newOrder.id).set(newOrder);
+            DB.cart = [];
+            alert(`Order ${newOrder.id} submitted!`);
+            loadSariOrders();
+        }
+
+        function loadSariOrders() {
+            const container = document.getElementById('main-content');
+            const myOrders = DB.orders.filter(o => o.storeId === currentUser.username);
+
+            container.innerHTML = `
+                <h2>My Orders</h2><br>
+                <table>
+                    <thead><tr><th>Order ID</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+                    <tbody>
+                        ${myOrders.map(o => `
+                            <tr>
+                                <td><strong>${o.id}</strong></td>
+                                <td>₱${Number(o.total).toFixed(2)}</td>
+                                <td><span class="badge badge-${o.status.toLowerCase().replace(/ /g, '_')}">${o.status}</span></td>
+                                <td><button class="btn btn-primary btn-sm" onclick="viewOrderDetails('${o.id}')">View Details</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function loadGroceryOrders() {
+            const container = document.getElementById('main-content');
+
+            container.innerHTML = `
+                <h2>Incoming Store Orders</h2><br>
+                <table>
+                    <thead><tr><th>Order ID</th><th>Store Name</th><th>Total</th><th>Status</th><th>Update Status</th></tr></thead>
+                    <tbody>
+                        ${DB.orders.map(o => `
+                            <tr>
+                                <td><strong>${o.id}</strong></td>
+                                <td>${o.storeName}</td>
+                                <td>₱${Number(o.total).toFixed(2)}</td>
+                                <td><span class="badge badge-${o.status.toLowerCase().replace(/ /g, '_')}">${o.status}</span></td>
+                                <td>
+                                    <select onchange="updateOrderStatus('${o.id}', this.value)">
+                                        <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                        <option value="Confirmed" ${o.status === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                                        <option value="Preparing" ${o.status === 'Preparing' ? 'selected' : ''}>Preparing</option>
+                                        <option value="Out for Delivery" ${o.status === 'Out for Delivery' ? 'selected' : ''}>Out for Delivery</option>
+                                        <option value="Delivered" ${o.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            db.ref(`orders/${orderId}/status`).set(newStatus);
+            db.ref(`orders/${orderId}/timeline/${newStatus}`).set(timeStr);
+            alert(`Order status updated to ${newStatus}`);
+        }
+
+        function viewOrderDetails(orderId) {
+            const order = DB.orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            document.getElementById('modal-order-id').innerText = `Order: ${order.id}`;
+            document.getElementById('modal-body').innerHTML = `
+                <p>Status: <strong>${order.status}</strong></p><br>
+                <ul>
+                    ${order.items.map(i => `<li>${i.name} (x${i.qty}) - ₱${(i.price * i.qty).toFixed(2)}</li>`).join('')}
+                </ul>
+                <br><h3>Total: ₱${Number(order.total).toFixed(2)}</h3>
+            `;
+            document.getElementById('order-modal').classList.remove('hidden');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-modal').classList.add('hidden');
+        }
+
+        function loadOrderHistory() { loadSariOrders(); }
+
+        // CHANGE PASSWORD
+        function loadChangePassword() {
+            const container = document.getElementById('main-content');
+            container.innerHTML = `
+                <h2>Change Password (${currentUser.role === 'grocery' ? 'Grocery Admin' : 'Sari-Sari Store'})</h2><br>
+                <div class="profile-card">
+                    <form onsubmit="handlePasswordChange(event)">
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="curr-password" required placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="new-password" required placeholder="Enter new password">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="confirm-new-password" required placeholder="Confirm new password">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Password</button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function handlePasswordChange(e) {
+            e.preventDefault();
+            const currPass = document.getElementById('curr-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirmNewPass = document.getElementById('confirm-new-password').value;
+
+            if (!currentUser) {
+                alert("Session expired. Please log in again.");
+                logout();
+                return;
+            }
+
+            const accountKey = `${currentUser.role}_${currentUser.username}`;
+            const account = DB.accounts[accountKey];
+
+            if (!account) {
+                alert("Account data not found!");
+                return;
+            }
+
+            if (account.password !== currPass) {
+                alert("Incorrect current password!");
+                return;
+            }
+
+            if (newPass !== confirmNewPass) {
+                alert("New passwords do not match!");
+                return;
+            }
+
+            db.ref(`accounts/${accountKey}/password`).set(newPass).then(() => {
+                alert(`Password updated successfully for ${currentUser.username}! You can now use your new password.`);
+                loadDashboard();
+            }).catch((error) => {
+                alert("Failed to update password: " + error.message);
+            });
+        }
+    </script>
+</body>
+</html>
